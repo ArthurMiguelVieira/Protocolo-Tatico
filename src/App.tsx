@@ -223,8 +223,8 @@ const Card = ({ children, className = "" }: { children: React.ReactNode, classNa
   </div>
 );
 
-const Button = ({ onClick, children, variant = 'primary', className = "", disabled = false }: any) => {
-  const base = "w-full font-bold uppercase tracking-wider rounded-md transition-all active:scale-[0.98] flex items-center justify-center gap-2";
+const Button = ({ onClick, children, variant = 'primary', className = "", disabled = false, fullWidth = true }: any) => {
+  const base = `${fullWidth ? 'w-full' : ''} font-bold uppercase tracking-wider rounded-md transition-all active:scale-[0.98] flex items-center justify-center gap-2`;
   const variants = {
     primary: "bg-slate-100 text-zinc-950 hover:bg-white h-14",
     secondary: "bg-slate-800 text-slate-200 hover:bg-slate-700 h-12 border border-slate-700",
@@ -649,18 +649,20 @@ export default function App() {
                 </div>
 
                 {/* Controls */}
-                <div className="flex gap-3 w-full max-w-xs mx-auto px-4">
+                <div className="flex items-center justify-center gap-4 w-full px-4">
                     <Button 
                         variant="outline" 
                         onClick={resetTimer} 
-                        className="w-14 h-14 shrink-0 rounded-full flex items-center justify-center border-slate-700 hover:border-slate-500 hover:bg-slate-800 transition-colors"
+                        fullWidth={false}
+                        className="w-14 h-14 shrink-0 rounded-full border-slate-700 hover:border-slate-500 hover:bg-slate-800"
                     >
                         <RotateCcw size={20} />
                     </Button>
                     <Button 
                         variant={isActive && !isPaused ? "secondary" : "primary"} 
                         onClick={toggleTimer}
-                        className="flex-1 h-14 text-base font-bold tracking-wider rounded-full shadow-[0_0_20px_rgba(16,185,129,0.15)]"
+                        fullWidth={false}
+                        className="flex-1 h-14 text-base font-bold tracking-wider rounded-full shadow-[0_0_20px_rgba(16,185,129,0.15)] max-w-[240px]"
                     >
                         {isActive && !isPaused ? <Pause className="mr-2" size={20}/> : <Play className="mr-2 fill-current" size={20}/>}
                         {isActive && !isPaused ? "PAUSAR" : isPaused ? "RETOMAR" : "INICIAR"}
