@@ -649,17 +649,21 @@ export default function App() {
                 </div>
 
                 {/* Controls */}
-                <div className="flex gap-4 w-full px-8">
+                <div className="flex gap-3 w-full max-w-xs mx-auto px-4">
+                    <Button 
+                        variant="outline" 
+                        onClick={resetTimer} 
+                        className="w-14 h-14 shrink-0 rounded-full flex items-center justify-center border-slate-700 hover:border-slate-500 hover:bg-slate-800 transition-colors"
+                    >
+                        <RotateCcw size={20} />
+                    </Button>
                     <Button 
                         variant={isActive && !isPaused ? "secondary" : "primary"} 
                         onClick={toggleTimer}
-                        className="flex-1 h-16 text-lg"
+                        className="flex-1 h-14 text-base font-bold tracking-wider rounded-full shadow-[0_0_20px_rgba(16,185,129,0.15)]"
                     >
-                        {isActive && !isPaused ? <Pause className="mr-2" /> : <Play className="mr-2 fill-current" />}
-                        {isActive && !isPaused ? "Pausar" : isPaused ? "Retomar" : "Iniciar"}
-                    </Button>
-                    <Button variant="outline" onClick={resetTimer} className="w-16 h-16 shrink-0 p-0 flex items-center justify-center border-slate-700">
-                        <RotateCcw size={24} />
+                        {isActive && !isPaused ? <Pause className="mr-2" size={20}/> : <Play className="mr-2 fill-current" size={20}/>}
+                        {isActive && !isPaused ? "PAUSAR" : isPaused ? "RETOMAR" : "INICIAR"}
                     </Button>
                 </div>
             </div>
