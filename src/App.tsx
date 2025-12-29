@@ -27,7 +27,7 @@ interface WorkoutLog {
   date: string;
   type: string;
   notes: string;
-  exercises: { name: string; weight: string; reps: string }[];
+  exercises: { name: string; weight: string; reps: string; sets: string }[];
 }
 
 interface StudySession {
@@ -62,8 +62,8 @@ const WORKOUT_SCHEDULE = [
     focus: "Recuperação Ativa / Mobilidade", 
     type: "REST",
     defaultExercises: [
-      { name: "Alongamento / Mobilidade", weight: "0", reps: "20min" },
-      { name: "Caminhada Leve", weight: "0", reps: "30min" }
+      { name: "Alongamento / Mobilidade", sets: "1", reps: "20min", weight: "0" },
+      { name: "Caminhada Leve", sets: "1", reps: "30min", weight: "0" }
     ]
   },
   { 
@@ -72,10 +72,10 @@ const WORKOUT_SCHEDULE = [
     focus: "Barra Fixa / Costas", 
     type: "STRENGTH",
     defaultExercises: [
-      { name: "Barra Fixa (Pronada)", weight: "0", reps: "Falha" },
-      { name: "Levantamento Terra", weight: "", reps: "8-10" },
-      { name: "Remada Curvada", weight: "", reps: "10-12" },
-      { name: "Rosca Direta", weight: "", reps: "12" }
+      { name: "Barra Fixa (Pronada)", sets: "4", reps: "Falha", weight: "Corpo" },
+      { name: "Levantamento Terra", sets: "3", reps: "8-10", weight: "" },
+      { name: "Remada Curvada", sets: "3", reps: "10-12", weight: "" },
+      { name: "Rosca Direta", sets: "3", reps: "12", weight: "" }
     ]
   },
   { 
@@ -84,8 +84,8 @@ const WORKOUT_SCHEDULE = [
     focus: "VO2 Max (Esteira)", 
     type: "CARDIO",
     defaultExercises: [
-      { name: "Tiro de 1 min (Alta Intensidade)", weight: "Vel 14", reps: "10x" },
-      { name: "Trote Recuperativo", weight: "Vel 8", reps: "10x" }
+      { name: "Tiro de 1 min (Alta Intensidade)", sets: "10", reps: "1min", weight: "Vel 14" },
+      { name: "Trote Recuperativo", sets: "10", reps: "1min", weight: "Vel 8" }
     ]
   },
   { 
@@ -94,11 +94,11 @@ const WORKOUT_SCHEDULE = [
     focus: "Agachamento / Flexão", 
     type: "STRENGTH",
     defaultExercises: [
-      { name: "Agachamento Livre", weight: "", reps: "8-10" },
-      { name: "Flexão de Braço", weight: "0", reps: "Falha" },
-      { name: "Supino Reto/Halteres", weight: "", reps: "10-12" },
-      { name: "Desenvolvimento Ombros", weight: "", reps: "12" },
-      { name: "Abdominal Remador", weight: "0", reps: "20" }
+      { name: "Agachamento Livre", sets: "4", reps: "8-10", weight: "" },
+      { name: "Flexão de Braço", sets: "4", reps: "Falha", weight: "Corpo" },
+      { name: "Supino Reto/Halteres", sets: "3", reps: "10-12", weight: "" },
+      { name: "Desenvolvimento Ombros", sets: "3", reps: "12", weight: "" },
+      { name: "Abdominal Remador", sets: "3", reps: "20", weight: "Corpo" }
     ]
   },
   { 
@@ -107,8 +107,8 @@ const WORKOUT_SCHEDULE = [
     focus: "Tempo Run (Resistência)", 
     type: "RUN",
     defaultExercises: [
-      { name: "Corrida 5km (Ritmo Constante)", weight: "", reps: "1x" },
-      { name: "Educativos de Corrida", weight: "", reps: "10min" }
+      { name: "Corrida 5km (Ritmo Constante)", sets: "1", reps: "1x", weight: "" },
+      { name: "Educativos de Corrida", sets: "1", reps: "10min", weight: "" }
     ]
   },
   { 
@@ -117,10 +117,10 @@ const WORKOUT_SCHEDULE = [
     focus: "Halteres / Funcional", 
     type: "STRENGTH",
     defaultExercises: [
-      { name: "Burpees", weight: "0", reps: "15" },
-      { name: "Kettlebell Swing", weight: "", reps: "15" },
-      { name: "Afundo (Lunges)", weight: "", reps: "12" },
-      { name: "Prancha Abdominal", weight: "0", reps: "1min" }
+      { name: "Burpees", sets: "3", reps: "15", weight: "Corpo" },
+      { name: "Kettlebell Swing", sets: "3", reps: "15", weight: "" },
+      { name: "Afundo (Lunges)", sets: "3", reps: "12", weight: "" },
+      { name: "Prancha Abdominal", sets: "3", reps: "1min", weight: "Corpo" }
     ]
   },
   { 
@@ -129,7 +129,7 @@ const WORKOUT_SCHEDULE = [
     focus: "Resistência Aeróbica", 
     type: "RUN",
     defaultExercises: [
-      { name: "Corrida Longa (8-10km)", weight: "", reps: "1x" }
+      { name: "Corrida Longa (8-10km)", sets: "1", reps: "1x", weight: "" }
     ]
   },
 ];
@@ -349,10 +349,10 @@ export default function App() {
   const WorkoutLogger = () => {
     // Carrega exercícios padrão do dia
     const [exercises, setExercises] = useState(
-        todaysWorkout.defaultExercises.map(ex => ({ ...ex }))
+        todaysWorkout.defaultExercises.map(ex => ({ ...ex, sets: (ex as any).sets || "" }))
     );
 
-    const addExercise = () => setExercises([...exercises, { name: "", weight: "", reps: "" }]);
+    const addExercise = () => setExercises([...exercises, { name: "", sets: "", weight: "", reps: "" }]);
     
     const updateExercise = (index: number, field: string, value: string) => {
         const newEx = [...exercises];
@@ -388,26 +388,41 @@ export default function App() {
 
                 <div className="space-y-3">
                     {exercises.map((ex, idx) => (
-                        <div key={idx} className="bg-black/20 p-3 rounded border border-slate-800 flex gap-2">
+                        <div key={idx} className="bg-black/20 p-3 rounded border border-slate-800 flex flex-col gap-2">
                             <input 
                                 placeholder="Exercício"
-                                className="bg-transparent text-slate-200 placeholder-slate-600 w-full outline-none text-sm font-medium"
+                                className="bg-transparent text-slate-200 placeholder-slate-600 w-full outline-none text-sm font-medium border-b border-transparent focus:border-slate-700"
                                 value={ex.name}
                                 onChange={(e) => updateExercise(idx, 'name', e.target.value)}
                             />
-                            <div className="flex gap-2 w-32 shrink-0">
-                                <input 
-                                    placeholder="Carga"
-                                    className="bg-slate-800 text-center text-slate-200 rounded w-1/2 outline-none border border-slate-700 focus:border-emerald-500 text-xs"
-                                    value={ex.weight}
-                                    onChange={(e) => updateExercise(idx, 'weight', e.target.value)}
-                                />
-                                <input 
-                                    placeholder="Reps"
-                                    className="bg-slate-800 text-center text-slate-200 rounded w-1/2 outline-none border border-slate-700 focus:border-emerald-500 text-xs"
-                                    value={ex.reps}
-                                    onChange={(e) => updateExercise(idx, 'reps', e.target.value)}
-                                />
+                            <div className="grid grid-cols-3 gap-2">
+                                 <div>
+                                    <label className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Séries</label>
+                                    <input 
+                                        placeholder="Sets"
+                                        className="bg-slate-800 text-center text-slate-200 rounded w-full outline-none border border-slate-700 focus:border-emerald-500 text-xs py-2"
+                                        value={ex.sets}
+                                        onChange={(e) => updateExercise(idx, 'sets', e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Reps</label>
+                                    <input 
+                                        placeholder="Reps"
+                                        className="bg-slate-800 text-center text-slate-200 rounded w-full outline-none border border-slate-700 focus:border-emerald-500 text-xs py-2"
+                                        value={ex.reps}
+                                        onChange={(e) => updateExercise(idx, 'reps', e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Carga</label>
+                                    <input 
+                                        placeholder="Kg"
+                                        className="bg-slate-800 text-center text-slate-200 rounded w-full outline-none border border-slate-700 focus:border-emerald-500 text-xs py-2"
+                                        value={ex.weight}
+                                        onChange={(e) => updateExercise(idx, 'weight', e.target.value)}
+                                    />
+                                </div>
                             </div>
                         </div>
                     ))}
