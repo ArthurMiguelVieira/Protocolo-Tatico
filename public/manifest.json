@@ -1,0 +1,22 @@
+{
+  "name": "Protocolo Tático",
+  "short_name": "Protocolo",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "description": "App de preparação tática e estudos para PMMG",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/pwa-icon.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "/pwa-icon.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}
