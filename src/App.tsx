@@ -45,6 +45,19 @@ interface QuestionLog {
   correct: number;
 }
 
+interface DailyVerse {
+  text: string;
+  reference: string;
+}
+
+const FALLBACK_VERSES: DailyVerse[] = [
+  { text: "Tudo posso naquele que me fortalece.", reference: "Filipenses 4:13" },
+  { text: "O Senhor é o meu pastor; de nada terei falta.", reference: "Salmos 23:1" },
+  { text: "Sejam fortes e corajosos. Não tenham medo.", reference: "Josué 1:9" },
+  { text: "Mil cairão ao teu lado, e dez mil à tua direita, mas tu não serás atingido.", reference: "Salmos 91:7" },
+  { text: "Combati o bom combate, acabei a carreira, guardei a fé.", reference: "2 Timóteo 4:7" }
+];
+
 const INITIAL_SUBJECTS = [
   "Português",
   "Direito Penal",
@@ -157,6 +170,37 @@ function useStickyState<T>(defaultValue: T, key: string): [T, React.Dispatch<Rea
   return [value, setValue];
 }
 
+function useDailyVerse() {
+  const [verse, setVerse] = useStickyState<DailyVerse | null>(null, 'tactical_daily_verse_data');
+  const [verseDate, setVerseDate] = useStickyState<string>('', 'tactical_daily_verse_date');
+
+  useEffect(() => {
+    const today = new Date().toDateString();
+    
+    if (verseDate !== today || !verse) {
+      // Need new verse
+      fetch('https://bible-api.com/?random=verse&translation=almeida')
+        .then(res => res.json())
+        .then(data => {
+          if (data.text && data.reference) {
+            setVerse({ text: data.text.trim(), reference: data.reference });
+            setVerseDate(today);
+          } else {
+            throw new Error("Invalid format");
+          }
+        })
+        .catch(() => {
+          // Fallback
+          const random = FALLBACK_VERSES[Math.floor(Math.random() * FALLBACK_VERSES.length)];
+          setVerse(random);
+          setVerseDate(today);
+        });
+    }
+  }, [verseDate]);
+
+  return verse;
+}
+
 // --- COMPONENTS ---
 
 const Header = ({ title, showBack, onBack, rightAction }: { title: string, showBack?: boolean, onBack?: () => void, rightAction?: React.ReactNode }) => (
@@ -249,8 +293,26 @@ export default function App() {
 
   // --- SUB-VIEWS ---
 
-  const Dashboard = () => (
+  const Dashboard = () => {
+    const dailyVerse = useDailyVerse();
+
+    return (
     <div className="space-y-6 pb-24 animate-in fade-in duration-300">
+      {/* DAILY VERSE */}
+      {dailyVerse && (
+        <div className="bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700/50 p-4 rounded-lg relative overflow-hidden shadow-lg">
+          <div className="absolute top-0 right-0 p-2 opacity-5">
+            <BookOpen size={80} />
+          </div>
+          <p className="text-slate-300 italic font-serif text-sm mb-2 leading-relaxed">
+            "{dailyVerse.text}"
+          </p>
+          <p className="text-emerald-500 text-[10px] font-bold uppercase tracking-widest text-right">
+            {dailyVerse.reference}
+          </p>
+        </div>
+      )}
+
       {/* HEADER STATS */}
       <div className="grid grid-cols-2 gap-4">
         <Card className="flex flex-col items-center justify-center py-6 border-t-4 border-t-emerald-500">
@@ -345,6 +407,7 @@ export default function App() {
 
     </div>
   );
+  };
 
   const WorkoutLogger = () => {
     // Carrega exercícios padrão do dia
@@ -443,20 +506,39 @@ export default function App() {
   };
 
   const StudyTimer = () => {
-    // Uses config value
     const [timeLeft, setTimeLeft] = useState(pomodoroDuration * 60); 
     const [isActive, setIsActive] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
+    
+    // Wake Lock to prevent screen sleep
+    useEffect(() => {
+        let wakeLock: any = null;
+        const requestWakeLock = async () => {
+            // @ts-ignore
+            if ('wakeLock' in navigator && isActive && !isPaused) {
+                try {
+                    // @ts-ignore
+                    wakeLock = await navigator.wakeLock.request('screen');
+                } catch (err) {
+                    console.error("Wake Lock error:", err);
+                }
+            }
+        };
+        requestWakeLock();
+        return () => {
+            if (wakeLock) wakeLock.release();
+        };
+    }, [isActive, isPaused]);
 
     useEffect(() => {
         let interval: any = null;
         if (isActive && !isPaused && timeLeft > 0) {
             interval = setInterval(() => {
-                setTimeLeft(timeLeft => timeLeft - 1);
+                setTimeLeft(prev => prev - 1);
             }, 1000);
         } else if (timeLeft === 0) {
             setIsActive(false);
-            finishSession(); // Auto-finish or alert
+            finishSession();
         }
         return () => clearInterval(interval);
     }, [isActive, isPaused, timeLeft]);
@@ -473,19 +555,25 @@ export default function App() {
     };
 
     const finishSession = () => {
-        // Calculate based on configured duration
         const duration = Math.round((pomodoroDuration * 60 - timeLeft) / 60);
-        if (duration < 1) return;
+        if (duration < 1 && timeLeft > 0) {
+            // If cancelled early without significant time
+            setView('DASHBOARD');
+            return;
+        }
 
         const log: StudySession = {
             id: Date.now().toString(),
             date: new Date().toISOString(),
             subject: currentSubject,
-            durationMinutes: duration,
+            durationMinutes: duration || 1, // Minimum 1 min log
         };
 
         setStudyHistory([log, ...studyHistory]);
-        setSubjectIndex(prev => prev + 1);
+        // Only advance subject if session was substantial (> 10 mins or finished)
+        if (timeLeft === 0 || duration > 10) {
+             setSubjectIndex(prev => prev + 1);
+        }
         setView('DASHBOARD');
     };
 
@@ -495,42 +583,90 @@ export default function App() {
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
+    // SVG Circle Calculations
+    const radius = 120;
+    const circumference = 2 * Math.PI * radius;
+    const totalTime = pomodoroDuration * 60;
+    const progress = ((totalTime - timeLeft) / totalTime);
+    const strokeDashoffset = circumference - (progress * circumference);
+
     return (
-        <div className="h-screen flex flex-col bg-zinc-950 animate-in zoom-in-95 duration-200">
-             <div className="absolute top-4 left-4">
-                <button onClick={() => setView('DASHBOARD')} className="p-2 text-slate-500">
-                    <ArrowLeft />
+        <div className="h-screen flex flex-col bg-zinc-950 animate-in zoom-in-95 duration-200 relative overflow-hidden">
+             {/* Background Pulse Effect when active */}
+             {isActive && !isPaused && (
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-3xl animate-pulse -z-10"></div>
+             )}
+
+             <div className="absolute top-6 left-4 z-20">
+                <button onClick={() => setView('DASHBOARD')} className="p-2 text-slate-500 hover:text-white transition-colors">
+                    <ArrowLeft size={28} />
                 </button>
             </div>
             
-            <div className="flex-1 flex flex-col items-center justify-center p-6">
-                <div className="mb-8 text-center">
-                    <span className="text-emerald-500 text-xs font-bold uppercase tracking-[0.2em]">Foco Atual</span>
-                    <h2 className="text-3xl font-black text-white mt-2 px-4">{currentSubject}</h2>
+            <div className="flex-1 flex flex-col items-center justify-center p-6 w-full max-w-md mx-auto">
+                <div className="mb-10 text-center z-10">
+                    <span className="text-emerald-500 text-xs font-bold uppercase tracking-[0.2em] mb-2 block">Foco Total</span>
+                    <h2 className="text-3xl font-black text-white px-2 leading-tight">{currentSubject}</h2>
                 </div>
 
-                <div className="relative mb-12">
-                    <div className="w-64 h-64 rounded-full border-4 border-slate-800 flex items-center justify-center bg-slate-900 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
-                        <span className={`text-6xl font-mono font-bold tracking-tighter ${isActive ? 'text-white' : 'text-slate-500'}`}>
+                {/* Progress Ring */}
+                <div className="relative mb-12 flex items-center justify-center">
+                    {/* Background Circle */}
+                    <svg className="transform -rotate-90 w-72 h-72">
+                        <circle
+                            cx="144"
+                            cy="144"
+                            r={radius}
+                            stroke="currentColor"
+                            strokeWidth="8"
+                            fill="transparent"
+                            className="text-slate-900"
+                        />
+                        {/* Progress Circle */}
+                        <circle
+                            cx="144"
+                            cy="144"
+                            r={radius}
+                            stroke="currentColor"
+                            strokeWidth="8"
+                            fill="transparent"
+                            strokeDasharray={circumference}
+                            strokeDashoffset={strokeDashoffset}
+                            strokeLinecap="round"
+                            className={`transition-all duration-1000 ease-linear ${isActive && !isPaused ? 'text-emerald-500 drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]' : 'text-slate-700'}`}
+                        />
+                    </svg>
+                    
+                    {/* Time Text */}
+                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
+                        <span className={`text-6xl font-mono font-bold tracking-tighter block ${isActive && !isPaused ? 'text-white' : 'text-slate-500'}`}>
                             {formatTime(timeLeft)}
+                        </span>
+                        <span className="text-xs text-slate-600 font-bold uppercase tracking-widest mt-1 block">
+                            {isActive ? (isPaused ? "Pausado" : "Focando") : "Pronto"}
                         </span>
                     </div>
                 </div>
 
-                <div className="flex gap-4 w-full max-w-xs">
-                    <Button variant={isActive && !isPaused ? "secondary" : "primary"} onClick={toggleTimer}>
-                        {isActive && !isPaused ? <Pause /> : <Play />}
+                {/* Controls */}
+                <div className="flex gap-4 w-full px-8">
+                    <Button 
+                        variant={isActive && !isPaused ? "secondary" : "primary"} 
+                        onClick={toggleTimer}
+                        className="flex-1 h-16 text-lg"
+                    >
+                        {isActive && !isPaused ? <Pause className="mr-2" /> : <Play className="mr-2 fill-current" />}
                         {isActive && !isPaused ? "Pausar" : isPaused ? "Retomar" : "Iniciar"}
                     </Button>
-                    <Button variant="outline" onClick={resetTimer} className="w-14 shrink-0 px-0">
-                        <RotateCcw size={20} />
+                    <Button variant="outline" onClick={resetTimer} className="w-16 h-16 shrink-0 p-0 flex items-center justify-center border-slate-700">
+                        <RotateCcw size={24} />
                     </Button>
                 </div>
             </div>
 
-            <div className="p-4 border-t border-slate-900">
-                <Button variant="success" onClick={finishSession}>
-                    <CheckCircle2 size={20} />
+            <div className="p-6 border-t border-slate-900 bg-zinc-950 z-20">
+                <Button variant="success" onClick={finishSession} className="h-14 shadow-lg shadow-emerald-900/20">
+                    <CheckCircle2 size={22} />
                     Finalizar Sessão
                 </Button>
             </div>
